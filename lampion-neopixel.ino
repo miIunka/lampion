@@ -5,8 +5,10 @@
 #define u32 uint32_t
 #define EFFECT_COUNT 7
 #define BUTTON_DEBOUNCE_MS 500
+#define PIN_BTN 3
+#define PIN_DATA 2
 
-Adafruit_NeoPixel strip(15, 2, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip(15, PIN_DATA, NEO_GRB + NEO_KHZ800);
 
 typedef struct {
 	float r;
@@ -35,6 +37,12 @@ void strip_fill_rows(RGBColor *columns) {
 		strip.setPixelColor(i, columns[i].r, columns[i].g, columns[i].b);
 		strip.setPixelColor(9 - i, columns[i].r, columns[i].g, columns[i].b);
 		strip.setPixelColor(10 + i, columns[i].r, columns[i].g, columns[i].b);
+	}
+}
+
+void strip_fill_columns(RGBColor *columns) {
+	for (u8 i = 0; i < 3; i++) {
+		strip.fill(Adafruit_NeoPixel::Color(columns[i].r, columns[i].g, columns[i].b), i * 5, 5); // 5 LEDs per strip segment
 	}
 }
 
@@ -87,8 +95,8 @@ void effect_1_update() {
 
 void setup() {
 	Serial.begin(115200);
-	digitalWrite(3, HIGH);
-	attachInterrupt(digitalPinToInterrupt(3), switch_effect, FALLING);
+	digitalWrite(PIN_BTN, HIGH);
+	attachInterrupt(digitalPinToInterrupt(PIN_BTN), switch_effect, FALLING);
 	
 	strip.begin();
 	Serial.print("ready");
@@ -110,20 +118,20 @@ struct {
 
 
 void effect_2_update() {
-	RGBColor column[5];
+	RGBColor rows[5];
 	
 	for (u8 i = 0; i < 5; i++) { // 5 LEDs (rows)
 		if (i == effect_2_state.row) {
-			column[i] = effect_1_3_colors[effect_2_state.color_target];
+			rows[i] = effect_1_3_colors[effect_2_state.color_target];
 		} else {
-			column[i] = {0, 0, 0}; // black
+			rows[i] = {0, 0, 0}; // black
 		}
 	}
 	
 	effect_2_state.color_target = (effect_2_state.color_target + 1) % effect_1_3_color_count;
 	effect_2_state.row = (effect_2_state.row + 1) % 5;
 	
-	strip_fill_rows(column);
+	strip_fill_rows(rows);
 	delay(350);
 }
 
@@ -158,6 +166,33 @@ void effect_3_update() {
 // Each column is lighten up in a different color.
 //
 
+struct {
+	u8 column;
+	u8 color_target;
+} effect_4_state = {
+	.column = 0,
+	.color_target = 0
+};
+
+
+void effect_4_update() {
+	RGBColor columns[3];
+	
+	for (u8 i = 0; i < 3; i++) {
+		if (i == effect_4_state.column) {
+			columns[i] = effect_1_3_colors[effect_4_state.color_target];
+		} else {
+			columns[i] = {0, 0, 0}; // black
+		}
+	}
+	
+	effect_4_state.color_target = (effect_4_state.color_target + 1) % effect_1_3_color_count;
+	effect_4_state.column = (effect_4_state.column + 1) % 3;
+	
+	strip_fill_columns(columns);
+	delay(350);
+}
+
 //
 // Effect 5 - Knight Rider Cascade
 // Loop of 6 colors. Each color is lighten up by row from bottom up and down two times
@@ -176,6 +211,10 @@ void loop() {
 		
 		case 2:
 			effect_3_update();
+			break;
+		
+		case 3:
+			effect_4_update();
 			break;
 	}
 	
